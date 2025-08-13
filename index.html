@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Gene the Talking Sea Turtle — Transparent Export</title>
+  <style>
+    :root { --bg1:#dff6ff; --bg2:#bde5ff; --ink:#0f172a; }
+    html,body{height:100%;margin:0;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,"Helvetica Neue",Arial;}
+    body{background:linear-gradient(#e0f2fe,#bae6fd);color:var(--ink);display:flex;align-items:center;justify-content:center;}
+    .app{width:min(1100px,96vw);padding:24px;box-sizing:border-box;background:#ffffffcc;border-radius:20px;box-shadow:0 10px 30px rgba(2,6,23,.15);}
+    h1{margin:0 0 12px;font-size:22px}
+    .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+    button,label.btn{border:0;border-radius:12px;padding:10px 14px;cursor:pointer;box-shadow:0 2px 6px rgba(2,6,23,.15);}
+    .green{background:#059669;color:#fff}.blue{background:#2563eb;color:#fff}.slate{background:#334155;color:#fff}
+    .rose{background:#e11d48;color:#fff}.amber{background:#d97706;color:#fff}.indigo{background:#4f46e5;color:#fff}
+    .row + .row{margin-top:10px}
+    .meter{height:8px;background:#e5e7eb;border-radius:999px;overflow:hidden}
+    .meter > div{height:100%;background:#10b981;width:0%}
+    .stage{position:relative;aspect-ratio:16/9;background:conic-gradient(at 25% 25%,#f0f0f0 0 25%,#e5e5e5 0 50%,#f0f0f0 0 75%,#e5e5e5 0 100%);background-size:20px 20px;border-radius:18px;margin-top:14px;display:flex;align-items:center;justify-content:center;}
+    .hint{font-size:12px;opacity:.8}
+    select,input[type=number]{padding:6px 8px;border:1px solid #cbd5e1;border-radius:10px}
+    canvas{display:none}
+  </style>
+</head>
+<body>
+<div class="app">
+  <h1>Gene the Talking Sea Turtle</h1>
+
+  <div class="row">
+    <label class="btn green" title="Upload voice file (drives lipsync; not recorded)">📁 Upload Audio
+      <input id="file" type="file" accept="audio/*" style="display:none" />
+    </label>
+    <button class="blue" id="play">▶️ Play</button>
+    <button class="slate" id="pause">⏸️ Pause</button>
+  </div>
+
+  <div class="row">
+    <button class="rose" id="recAudio" title="Record canvas + audio mix (alpha)">⬤ Start Recording (WebM w/ Alpha)</button>
+    <button class="amber" id="recSilent" title="Record animation only (transparent WebM)">⬤ Start Recording (No Audio)</button>
+    <button class="slate" id="stop" disabled>■ Stop & Save</button>
+    <div id="dlWrap" style="display:none;gap:8px" class="row">
+      <button class="indigo" id="download">⬇️ Download Last Recording</button>
+      <a class="slate" id="openTab" target="_blank" rel="noopener">🔗 Open in New Tab</a>
+    </div>
+  </div>
+
+  <div class="row" style="justify-content:flex-end">
+    <span class="hint">Size:</span>
+    <select id="size">
+      <option value="1920x1080@30">1920×1080 @30</option>
+      <option value="1280x720@30">1280×720 @30</option>
+      <option value="1080x1080@30">1080×1080 @30 (square)</option>
+    </select>
+  </div>
+
+  <div class="meter" aria-label="Mouth meter"><div id="meterFill"></div></div>
+
+  <div class="stage" id="stage">
+    <!-- Turtle SVG -->
+    <svg id="turtle" viewBox="0 0 400 300" width="90%" style="filter:drop-shadow(0 12px 16px rgba(2,6,23,.2))" role="img" aria-label="Standing cartoon sea turtle superhero">
+      <defs>
+        <linearGradient id="shellGrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#3ba375" /><stop offset="100%" stop-color="#2c8b62" /></linearGradient>
+        <linearGradient id="skinGrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#8fd3a6" /><stop offset="100%" stop-color="#6bb98d" /></linearGradient>
+        <linearGradient id="capeGrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#2563eb" /><stop offset="100%" stop-color="#1d4ed8" /></linearGradient>
+      </defs>
+      <g id="root">
+        <!-- Cape (dynamic path) -->
+        <path id="cape" fill="url(#capeGrad)" opacity="0.95" />
+        <!-- Tail -->
+        <path id="tail" fill="url(#skinGrad)" />
+        <!-- Shell & belly -->
+        <ellipse cx="200" cy="165" rx="70" ry="90" fill="url(#shellGrad)" />
+        <ellipse cx="200" cy="175" rx="55" ry="75" fill="#f2e8c9" />
+        <g opacity="0.25">
+          <path d="M200 110 v130" stroke="#bdad86" stroke-width="4" />
+          <path d="M160 140 h80" stroke="#bdad86" stroke-width="3" />
+          <path d="M160 170 h80" stroke="#bdad86" stroke-width="3" />
+          <path d="M160 200 h80" stroke="#bdad86" stroke-width="3" />
+        </g>
+        <!-- Name badge -->
+        <g transform="translate(165,150)">
+          <rect x="-30" y="-18" width="60" height="36" rx="5" fill="#ffffff" stroke="#e5e7eb" />
+          <rect x="-30" y="-18" width="60" height="14" rx="5" fill="#ef4444" />
+          <text x="0" y="-8" text-anchor="middle" font-family="sans-serif" font-size="8" font-weight="700" fill="#ffffff">HELLO</text>
+          <text x="0" y="4" text-anchor="middle" font-family="sans-serif" font-size="7" fill="#111827">My Name is</text>
+          <text x="0" y="16" text-anchor="middle" font-family="sans-serif" font-size="10" font-weight="700" fill="#111827">Gene</text>
+        </g>
+        <!-- Arms + flag group -->
+        <g id="armL"><ellipse cx="130" cy="165" rx="18" ry="40" fill="url(#skinGrad)" /></g>
+        <g id="armR">
+          <ellipse cx="270" cy="165" rx="18" ry="40" fill="url(#skinGrad)" />
+          <line id="pole" x1="285" y1="150" x2="300" y2="85" stroke="#374151" stroke-width="3" />
+          <path id="flag" fill="#fff" stroke="#1f2937" stroke-width="2" />
+          <text id="flagTop" text-anchor="middle" font-family="sans-serif" font-size="9" font-weight="800" fill="#f97316">Renewable</text>
+          <text id="flagBot" text-anchor="middle" font-family="sans-serif" font-size="9" font-weight="800" fill="#f97316">Energy</text>
+        </g>
+        <!-- Legs -->
+        <ellipse cx="170" cy="245" rx="20" ry="28" fill="url(#skinGrad)" />
+        <ellipse cx="230" cy="245" rx="20" ry="28" fill="url(#skinGrad)" />
+        <!-- Neck -->
+        <path d="M190 105 C190 95, 210 95, 210 105 C208 118, 202 125, 200 125 C198 125, 192 118, 190 105Z" fill="url(#skinGrad)" />
+        <!-- Head (group so we can nod) -->
+        <g id="head">
+          <ellipse cx="200" cy="90" rx="35" ry="28" fill="url(#skinGrad)" />
+          <circle cx="187" cy="85" r="4.5" fill="#1f2937" />
+          <circle cx="213" cy="85" r="4.5" fill="#1f2937" />
+          <circle cx="189" cy="83" r="1.5" fill="#fff" />
+          <circle cx="215" cy="83" r="1.5" fill="#fff" />
+          <!-- Nostrils -->
+          <ellipse cx="195" cy="92" rx="1.2" ry="1.6" fill="#1f2937" />
+          <ellipse cx="205" cy="92" rx="1.2" ry="1.6" fill="#1f2937" />
+          <!-- Mouth -->
+          <g id="mouth" transform="translate(200,100)">
+            <rect id="mouthOuter" x="-10" y="-12" width="20" height="24" rx="8" fill="#2b2b2b" />
+            <rect id="mouthInner" x="-9" y="-10" width="18" height="20" rx="6" fill="#b91c1c" />
+            <rect id="mouthTeeth" x="-9" y="-12" width="18" height="3" rx="2" fill="#fef3c7" opacity="0.9" />
+          </g>
+        </g>
+      </g>
+    </svg>
+    <audio id="audio" preload="auto"></audio>
+  </div>
+  <p class="hint">Transparent background is preserved. Import the .webm into Premiere/After Effects, or convert to PNG sequence if WebM isn’t supported.</p>
+  <canvas id="canvas"></canvas>
+</div>
+
+<script>
+(function(){
+  // ---------- DOM refs
+  const fileEl = document.getElementById('file');
+  const playBtn = document.getElementById('play');
+  const pauseBtn = document.getElementById('pause');
+  const recA = document.getElementById('recAudio');
+  const recS = document.getElementById('recSilent');
+  const stopBtn = document.getElementById('stop');
+  const sizeSel = document.getElementById('size');
+  const meterFill = document.getElementById('meterFill');
+  const audio = document.getElementById('audio');
+  const svg = document.getElementById('turtle');
+  const canvas = document.getElementById('canvas');
+  const dlWrap = document.getElementById('dlWrap');
+  const downloadBtn = document.getElementById('download');
+  const openTab = document.getElementById('openTab');
+
+  // ---------- State
+  let mouthOpen = 0; // 0..1
+  let armSwing = 0, capeSway = 0, flagWave = 0, headNod = 0, bobY = 0;
+  let raf = 0, drawRaf = 0;
+  let isRecording = false;
+  let recordUrl = '';
+  let recorder = null;
+  let recordChunks = [];
+  let audioCtx = null, analyser = null, dataBuf = null, mixDest = null, mediaSrc = null;
+
+  // ---------- Audio helpers
+  function ensureAudio(){
+    if (!audioCtx) {
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      audioCtx = new Ctx();
+      mixDest = audioCtx.createMediaStreamDestination();
+    }
+    return audioCtx;
+  }
+  async function unlockAudio(){ try{ const ctx = ensureAudio(); if (ctx.state!=='running') await ctx.resume(); }catch(e){} }
+  function getAnalyser(){
+    const ctx = ensureAudio();
+    if (!analyser){
+      analyser = ctx.createAnalyser();
+      analyser.fftSize = 1024;
+      analyser.smoothingTimeConstant = 0.8;
+      dataBuf = new Uint8Array(analyser.frequencyBinCount);
+      analyser.connect(ctx.destination);
+      analyser.connect(mixDest);
+    }
+    return analyser;
+  }
+
+  // ---------- Lipsync mapping
+  const clamp=(v,a,b)=>Math.min(b,Math.max(a,v));
+  const rmsToOpen=(r)=>clamp((r-0.02)*6,0,1);
+  const mouthH=(o)=>4 + o*20;
+
+  // ---------- Elements we animate
+  const root = svg.getElementById ? svg : document; // Safari poly
+  const cape = document.getElementById('cape');
+  const tail = document.getElementById('tail');
+  const armL = document.getElementById('armL');
+  const armR = document.getElementById('armR');
+  const head = document.getElementById('head');
+  const flag = document.getElementById('flag');
+  const flagTop = document.getElementById('flagTop');
+  const flagBot = document.getElementById('flagBot');
+
+  const flagBaseX = 300, flagBaseY = 85;
+
+  function updateSVGPaths(){
+    // cape sway
+    const dCape = `M210 110 C260 ${120 + capeSway/2}, 310 ${150 + capeSway}, 340 ${190 + capeSway/1.5} C310 ${200 + capeSway/2}, 260 ${230 + capeSway/3}, 200 220 Z`;
+    cape.setAttribute('d', dCape);
+    // tail
+    const dTail = `M255 215 C265 ${220 + capeSway*0.05}, 275 ${235 + capeSway*0.05}, 268 246 C260 ${238 + capeSway*0.05}, 255 ${225 + capeSway*0.05}, 255 215 Z`;
+    tail.setAttribute('d', dTail);
+    // arms (rotate about centers)
+    armL.setAttribute('transform', `rotate(${-12 + armSwing} 130 165)`);
+    armR.setAttribute('transform', `rotate(${12 - armSwing} 270 165)`);
+    // head nod
+    head.setAttribute('transform', `rotate(${headNod} 200 100)`);
+    // flag
+    const dFlag = `M ${flagBaseX} ${flagBaseY} q 17 ${-6 - flagWave*0.2}, 34 0 q 17 ${6 + flagWave*0.2}, 34 0 l 0 28 q -17 ${6 + flagWave*0.2}, -34 0 q -17 ${-6 - flagWave*0.2}, -34 0 Z`;
+    flag.setAttribute('d', dFlag);
+    flagTop.setAttribute('x', flagBaseX + 34);
+    flagTop.setAttribute('y', flagBaseY + 12);
+    flagBot.setAttribute('x', flagBaseX + 34);
+    flagBot.setAttribute('y', flagBaseY + 19);
+    // mouth rects
+    const h = mouthH(mouthOpen);
+    document.getElementById('mouthOuter').setAttribute('y', String(-h/2));
+    document.getElementById('mouthOuter').setAttribute('height', String(h));
+    document.getElementById('mouthInner').setAttribute('y', String(-h/2 + 2));
+    document.getElementById('mouthInner').setAttribute('height', String(h-4));
+    document.getElementById('mouthTeeth').setAttribute('y', String(-h/2));
+    // bob
+    svg.getElementById ? svg.getElementById('root').setAttribute('transform', `translate(0, ${- (6*(0.3+mouthOpen*0.7))})`) : null;
+  }
+
+  // ---------- Animation loop
+  function tick(){
+    // audio envelope → mouth, head
+    if (analyser && dataBuf){
+      analyser.getByteTimeDomainData(dataBuf);
+      let sum=0; for(let i=0;i<dataBuf.length;i++){ const v=(dataBuf[i]-128)/128; sum+=v*v; }
+      const rms=Math.sqrt(sum/dataBuf.length);
+      const target=rmsToOpen(rms);
+      mouthOpen = mouthOpen*0.8 + target*0.2;
+      headNod = headNod*0.85 + (target*3)*0.15;
+    }
+    // time-based motions
+    const t = performance.now();
+    armSwing = Math.sin(t*0.003)*5;
+    capeSway = Math.sin(t*0.0025)*8;
+    flagWave = Math.sin(t*0.004)*10;
+
+    updateSVGPaths();
+    meterFill.style.width = Math.round(mouthOpen*100)+"%";
+
+    if (isRecording) drawOnce();
+    raf = requestAnimationFrame(tick);
+  }
+
+  function startLoop(){ cancelAnimationFrame(raf); raf = requestAnimationFrame(tick); }
+  startLoop(); // start immediately so idle animation plays
+
+  // ---------- Serialize SVG → Canvas frame
+  function drawOnce(){
+    const [w,h,fps] = parseSize();
+    if (canvas.width!==w) canvas.width=w; if (canvas.height!==h) canvas.height=h;
+    const ctx = canvas.getContext('2d', {alpha:true});
+    const src = new XMLSerializer().serializeToString(svg);
+    const svg64 = btoa(unescape(encodeURIComponent(src)));
+    const img = new Image();
+    img.onload = ()=>{ ctx.clearRect(0,0,w,h); ctx.drawImage(img,0,0,w,h); };
+    img.src = `data:image/svg+xml;base64,${svg64}`;
+  }
+
+  // ---------- Recording
+  function pickMime(){
+    const m=["video/webm;codecs=vp9","video/webm;codecs=vp8","video/webm"]; // keep simple
+    for(const t of m){ if (window.MediaRecorder && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(t)) return t; }
+    return '';
+  }
+  function parseSize(){
+    const [wh,fps] = sizeSel.value.split('@');
+    const [w,h] = wh.split('x').map(Number);
+    return [w,h,Number(fps)||30];
+  }
+
+  function startRecordingBase(includeAudio){
+    stopBtn.disabled = false; recA.disabled = true; recS.disabled = true; dlWrap.style.display='none';
+    const [w,h,fps] = parseSize();
+    // ensure one draw before we start (so first chunk isn't blank)
+    drawOnce();
+    const stream = canvas.captureStream(fps);
+    let tracks = [...stream.getVideoTracks()];
+    if (includeAudio && mixDest && mixDest.stream){
+      tracks = tracks.concat(mixDest.stream.getAudioTracks());
+    }
+    const ms = new MediaStream(tracks);
+    const mime = pickMime();
+    recorder = new MediaRecorder(ms, mime?{mimeType:mime, videoBitsPerSecond:8_000_000}:{videoBitsPerSecond:8_000_000});
+    recordChunks.length = 0; isRecording = true;
+
+    recorder.ondataavailable = (e)=>{ if (e.data && e.data.size>0) recordChunks.push(e.data); };
+    recorder.onstop = ()=>{
+      const blob = new Blob(recordChunks, {type: mime||'video/webm'});
+      recordUrl = URL.createObjectURL(blob);
+      isRecording = false; cancelAnimationFrame(drawRaf);
+      // auto-download
+      try{ const a=document.createElement('a'); a.href=recordUrl; a.download=`gene_${Date.now()}${includeAudio?'':'_noaudio'}.webm`; document.body.appendChild(a); a.click(); a.remove(); }catch{}
+      // backups
+      openTab.href = recordUrl; downloadBtn.onclick = ()=>{ const a=document.createElement('a'); a.href=recordUrl; a.download=`gene_${Date.now()}.webm`; document.body.appendChild(a); a.click(); a.remove(); };
+      dlWrap.style.display='flex';
+      stopBtn.disabled = true; recA.disabled = false; recS.disabled = false;
+    };
+
+    // draw loop tied to recording flag
+    function drawLoop(){ if (isRecording){ drawOnce(); drawRaf = requestAnimationFrame(drawLoop); } }
+    drawRaf = requestAnimationFrame(drawLoop);
+    recorder.start();
+  }
+
+  document.getElementById('recSilent').addEventListener('click', ()=> startRecordingBase(false));
+  document.getElementById('recAudio').addEventListener('click', async ()=>{
+    await unlockAudio();
+    if (!analyser){
+      // If no audio graph is active, this would throw later; show a helpful tip.
+      alert('To include audio in the recording, press Play after uploading an audio file. Otherwise use "No Audio".');
+      return;
+    }
+    startRecordingBase(true);
+  });
+  document.getElementById('stop').addEventListener('click', ()=>{ try{ recorder && recorder.stop(); }catch(e){} });
+
+  // ---------- File + Play/Pause (for lip-sync only; audio not recorded in No Audio mode)
+  fileEl.addEventListener('change', (e)=>{
+    const f = e.target.files && e.target.files[0]; if(!f) return;
+    const url = URL.createObjectURL(f); audio.src = url; audio.load();
+  });
+  playBtn.addEventListener('click', async ()=>{
+    await unlockAudio();
+    const ctx = ensureAudio();
+    const an = getAnalyser();
+    if (!mediaSrc){ mediaSrc = ctx.createMediaElementSource(audio); mediaSrc.connect(an); }
+    try{ await audio.play(); }catch(e){ alert('Playback failed. Click Play again after allowing audio.'); }
+  });
+  pauseBtn.addEventListener('click', ()=>{ try{ audio.pause(); }catch{} });
+})();
+</script>
+</body>
+</html>
